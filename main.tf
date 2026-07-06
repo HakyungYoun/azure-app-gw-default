@@ -1,3 +1,6 @@
+# create_before_destroy: public_ip_name 변경 등으로 PIP가 교체될 때
+#   새 PIP 생성 -> AGW frontend config 업데이트(연결 전환) -> 기존 PIP 삭제
+# 순서로 실행되어 "아직 AGW에 연결되어 있어 삭제 불가" 에러를 방지한다.
 resource "azurerm_public_ip" "agw_pip" {
   for_each = {
     for k, v in var.application_gateways : k => v
@@ -9,6 +12,10 @@ resource "azurerm_public_ip" "agw_pip" {
   location            = data.azurerm_resource_group.rg[each.value.resource_group_name].location
   allocation_method   = "Static"
   sku                 = "Standard"
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Application Gateway 생성 (게이트웨이마다 독립적으로 for_each)
