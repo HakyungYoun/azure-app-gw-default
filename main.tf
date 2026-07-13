@@ -176,3 +176,33 @@ resource "azurerm_application_gateway" "network" {
   #   ignore_changes = [backend_address_pool]
   # }
 }
+
+# ---------------------------------------------------------------------------
+# IAM 역할 할당
+# 각 App GW 항목의 iam 맵을 "gw키/할당키" 단일 맵으로 평탄화해서 for_each.
+# scope가 App GW 리소스를 직접 참조하므로 destroy 시 할당 -> GW 순으로
+# 정리되어 고아 롤 할당이 남지 않는다.
+# 사전 조건: 실행 주체(SP)에 해당 스코프의 Owner 또는
+#            User Access Administrator 역할 필요 (Contributor만으로는 403)
+# ---------------------------------------------------------------------------
+locals {
+  # 결과 예: { "agw-proj-a/team-reader" = { gw_key = "agw-proj-a", ... }, ... }
+  agw_iam = merge([
+    for gw_key, gw in var.application_gateways : {
+      for iam_key, a in gw.iam :
+      "${gw_key}/${iam_key}" => {
+        gw_key               = gw_key
+        principal_id         = a.principal_id
+        role_definition_name = a.role_definition_name
+      }
+    }
+  ]...)
+}
+
+resource "azurerm_role_assignment" "agw" {
+  for_each = local.agw_iam
+
+  scope                = azurerm_application_gateway.network[each.value.gw_key].id
+  role_definition_name = each.value.role_definition_name
+  principal_id         = each.value.principal_id
+}
