@@ -43,7 +43,7 @@ variable "application_gateways" {
       interval            = optional(number, 30)
       timeout             = optional(number, 30)
       unhealthy_threshold = optional(number, 3)
-      host                = optional(string)  # 미지정 시 backend settings의 호스트를 따름
+      host                = optional(string, "127.0.0.1")  # 미지정 시 backend settings의 호스트를 따름
     })), {})
 
     backend_settings = optional(map(object({
